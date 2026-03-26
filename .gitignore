@@ -1,0 +1,41 @@
+# Dependencies
+node_modules
+
+# Build outputs
+.turbo
+dist
+.next
+.expo
+
+# Native generated directories (EAS builds these)
+apps/mobile/android
+apps/mobile/ios
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.local.example
+*.local
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# EAS / secrets
+google-service-account.json
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Editor
+.vscode
+.idea
+*.swp

@@ -1,0 +1,9 @@
+{
+  "name": "@torah-app/api-client",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.js",
+  "dependencies": {
+    "@tanstack/react-query": "^5.64.2"
+  }
+}

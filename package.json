@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "turbo run dev",
-    "dev:web": "fuser -k 3000/tcp 3001/tcp 2>/dev/null; concurrently -n api,web -c blue,green \"pnpm --filter api dev\" \"pnpm --filter web dev\"",
+    "dev:web": "fuser -k 4000/tcp 3001/tcp 2>/dev/null; concurrently -n api,web -c blue,green \"pnpm --filter api dev\" \"pnpm --filter web dev\"",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "api": "turbo run dev --filter=api",

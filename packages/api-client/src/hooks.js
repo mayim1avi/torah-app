@@ -47,6 +47,18 @@ export function useInstitutions(opts = {}) {
   return useQuery({ queryKey: ['institutions', opts], queryFn: () => api.getInstitutions(opts), staleTime: 60_000 * 10 });
 }
 
+export function useInstitution(id) {
+  return useQuery({ queryKey: ['institution', id], queryFn: () => api.getInstitution(id), enabled: !!id });
+}
+
+export function useInstitutionSeries(id, opts = {}) {
+  return useQuery({ queryKey: ['institution-series', id, opts], queryFn: () => api.getInstitutionSeries(id, opts), enabled: !!id });
+}
+
+export function useInstitutionLessons(id, opts = {}) {
+  return useQuery({ queryKey: ['institution-lessons', id, opts], queryFn: () => api.getInstitutionLessons(id, opts), enabled: !!id });
+}
+
 export function useSearch(params) {
   return useQuery({
     queryKey: ['search', params],

@@ -66,6 +66,10 @@ export const api = {
   getInstitutions: ({ search = '', limit = 200 } = {}) =>
     apiFetch(`/api/institutions${buildParams({ search, limit })}`),
   getInstitution: (id) => apiFetch(`/api/institutions/${id}`),
+  getInstitutionSeries: (id, { limit = 50, offset = 0 } = {}) =>
+    apiFetch(`/api/institutions/${id}/series${buildParams({ limit, offset })}`),
+  getInstitutionLessons: (id, { limit = 50, offset = 0 } = {}) =>
+    apiFetch(`/api/institutions/${id}/lessons${buildParams({ limit, offset })}`),
 
   // Search
   search: ({ q, categoryId, teacherIds = [], institutionIds = [], type = 'all', limit = 30, offset = 0 } = {}) =>

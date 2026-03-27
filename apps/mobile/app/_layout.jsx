@@ -51,6 +51,7 @@ export default function RootLayout() {
           <Stack.Screen name="series/[id]" options={{ title: '' }} />
           <Stack.Screen name="lesson/[id]" options={{ title: '' }} />
           <Stack.Screen name="teacher/[id]" options={{ title: '' }} />
+          <Stack.Screen name="institution/[id]" options={{ title: '' }} />
           <Stack.Screen name="auth/index" options={{ title: 'כניסה', presentation: 'modal' }} />
         </Stack>
         <MiniPlayer />

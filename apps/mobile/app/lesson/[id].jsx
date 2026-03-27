@@ -80,7 +80,11 @@ export default function LessonDetailScreen() {
             <Text style={[styles.teacherName, lesson.teacher_id && styles.teacherLink]}>{lesson.teacher_name}</Text>
           </TouchableOpacity>
         )}
-        {lesson.institution_name && <Text style={styles.institutionName}>{lesson.institution_name}</Text>}
+        {lesson.institution_name && (
+          <TouchableOpacity onPress={() => lesson.institution_id && router.push(`/institution/${lesson.institution_id}`)}>
+            <Text style={[styles.institutionName, lesson.institution_id && styles.teacherLink]}>{lesson.institution_name}</Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           style={[styles.playButton, !canPlay && styles.playButtonDisabled]}

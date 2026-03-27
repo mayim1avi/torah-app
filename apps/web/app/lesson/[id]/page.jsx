@@ -121,7 +121,14 @@ export default function LessonPage() {
             {lesson.teacher_name}
           </div>
         )}
-        {lesson.institution_name && <div style={C.institution}>{lesson.institution_name}</div>}
+        {lesson.institution_name && (
+          <div
+            style={{ ...C.institution, ...(lesson.institution_id ? { cursor: 'pointer', textDecoration: 'underline' } : {}) }}
+            onClick={() => lesson.institution_id && router.push(`/institution/${lesson.institution_id}`)}
+          >
+            {lesson.institution_name}
+          </div>
+        )}
 
         <button style={C.playBtn(!canPlay)} onClick={handlePlay} disabled={!canPlay}>
           {playLabel}

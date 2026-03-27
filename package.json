@@ -4,12 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "turbo run dev",
-    "dev:web": "fuser -k 4000/tcp 8080/tcp 2>/dev/null; concurrently -n api,web -c blue,green \"pnpm --filter api dev\" \"pnpm --filter web dev\"",
+    "web": "fuser -k 4000/tcp 8080/tcp 2>/dev/null; concurrently -n api,web -c blue,green \"pnpm --filter api dev\" \"pnpm --filter web dev\"",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "api": "turbo run dev --filter=api",
-    "mobile": "turbo run dev --filter=mobile",
-    "web": "turbo run dev --filter=web"
+    "mobile": "turbo run dev --filter=mobile"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

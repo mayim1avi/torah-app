@@ -8,6 +8,8 @@ export {
   useSeriesLessons,
   useLesson,
   useTeachers,
+  useTeacher,
+  useTeacherLessons,
   useInstitutions,
   useSearch,
   useLibrary,

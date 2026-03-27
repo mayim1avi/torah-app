@@ -70,7 +70,15 @@ export default function SeriesPage() {
       <div style={C.header}>
         <div style={C.artwork}>📚</div>
         <div style={C.title}>{series.name}</div>
-        {series.teacher_name && <div style={C.teacher}>{series.teacher_name}</div>}
+        {series.teachers?.map((t) => (
+          <div
+            key={t.id}
+            style={{ ...C.teacher, cursor: 'pointer', textDecoration: 'underline' }}
+            onClick={() => router.push(`/teacher/${t.id}`)}
+          >
+            {t.name}
+          </div>
+        )) ?? (series.teacher_name && <div style={C.teacher}>{series.teacher_name}</div>)}
         {series.institution_name && <div style={C.institution}>{series.institution_name}</div>}
         {playableLessons.length > 0 && (
           <button style={C.playAllBtn} onClick={handlePlayAll}>

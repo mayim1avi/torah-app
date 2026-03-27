@@ -59,6 +59,8 @@ export const api = {
   getTeachers: ({ search = '', limit = 200 } = {}) =>
     apiFetch(`/api/teachers${buildParams({ search, limit })}`),
   getTeacher: (id) => apiFetch(`/api/teachers/${id}`),
+  getTeacherLessons: (id, { limit = 50, offset = 0 } = {}) =>
+    apiFetch(`/api/teachers/${id}/lessons${buildParams({ limit, offset })}`),
 
   // Institutions
   getInstitutions: ({ search = '', limit = 200 } = {}) =>

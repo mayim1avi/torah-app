@@ -66,7 +66,11 @@ export default function SeriesDetailScreen() {
         </View>
         <View style={styles.headerInfo}>
           <Text style={styles.seriesName}>{series.name}</Text>
-          {teacherNames ? <Text style={styles.meta}>{teacherNames}</Text> : null}
+          {series.teachers?.map((t) => (
+            <TouchableOpacity key={t.id} onPress={() => router.push(`/teacher/${t.id}`)}>
+              <Text style={[styles.meta, styles.teacherLink]}>{t.name}</Text>
+            </TouchableOpacity>
+          ))}
           {series.institution_name ? <Text style={styles.meta}>{series.institution_name}</Text> : null}
           <Text style={styles.lessonCount}>{series.lesson_count} שיעורים</Text>
         </View>
@@ -143,6 +147,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   meta: { color: '#81c784', fontSize: 13, textAlign: 'right', marginBottom: 2 },
+  teacherLink: { textDecorationLine: 'underline' },
   lessonCount: {
     color: '#4caf50',
     fontSize: 12,

@@ -75,7 +75,11 @@ export default function LessonDetailScreen() {
         </View>
 
         <Text style={styles.lessonTitle}>{lesson.title ?? lesson.name}</Text>
-        {lesson.teacher_name && <Text style={styles.teacherName}>{lesson.teacher_name}</Text>}
+        {lesson.teacher_name && (
+          <TouchableOpacity onPress={() => lesson.teacher_id && router.push(`/teacher/${lesson.teacher_id}`)}>
+            <Text style={[styles.teacherName, lesson.teacher_id && styles.teacherLink]}>{lesson.teacher_name}</Text>
+          </TouchableOpacity>
+        )}
         {lesson.institution_name && <Text style={styles.institutionName}>{lesson.institution_name}</Text>}
 
         <TouchableOpacity
@@ -198,6 +202,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   teacherName: { color: '#81c784', fontSize: 14, textAlign: 'center' },
+  teacherLink: { textDecorationLine: 'underline' },
   institutionName: { color: '#4a7c59', fontSize: 13, textAlign: 'center' },
   playButton: {
     marginTop: 14,

@@ -35,6 +35,14 @@ export function useTeachers(opts = {}) {
   return useQuery({ queryKey: ['teachers', opts], queryFn: () => api.getTeachers(opts), staleTime: 60_000 * 10 });
 }
 
+export function useTeacher(id) {
+  return useQuery({ queryKey: ['teacher', id], queryFn: () => api.getTeacher(id), enabled: !!id });
+}
+
+export function useTeacherLessons(id, opts = {}) {
+  return useQuery({ queryKey: ['teacher-lessons', id, opts], queryFn: () => api.getTeacherLessons(id, opts), enabled: !!id });
+}
+
 export function useInstitutions(opts = {}) {
   return useQuery({ queryKey: ['institutions', opts], queryFn: () => api.getInstitutions(opts), staleTime: 60_000 * 10 });
 }

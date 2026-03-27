@@ -113,7 +113,14 @@ export default function LessonPage() {
           {isThisLesson && isPlaying && <div style={C.nowPlaying}>מנגן ▶</div>}
         </div>
         <div style={C.title}>{lesson.title ?? lesson.name}</div>
-        {lesson.teacher_name && <div style={C.teacher}>{lesson.teacher_name}</div>}
+        {lesson.teacher_name && (
+          <div
+            style={{ ...C.teacher, ...(lesson.teacher_id ? { cursor: 'pointer', textDecoration: 'underline' } : {}) }}
+            onClick={() => lesson.teacher_id && router.push(`/teacher/${lesson.teacher_id}`)}
+          >
+            {lesson.teacher_name}
+          </div>
+        )}
         {lesson.institution_name && <div style={C.institution}>{lesson.institution_name}</div>}
 
         <button style={C.playBtn(!canPlay)} onClick={handlePlay} disabled={!canPlay}>

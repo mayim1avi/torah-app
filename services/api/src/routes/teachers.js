@@ -1,4 +1,4 @@
-import { getAllTeachers, getTeacherById } from '../db/teachers.js';
+import { getAllTeachers, getTeacherById, getLessonsByTeacher } from '../db/teachers.js';
 
 export default async function teacherRoutes(fastify) {
   fastify.get('/teachers', async (req) => {
@@ -12,5 +12,12 @@ export default async function teacherRoutes(fastify) {
     const teacher = await getTeacherById(id);
     if (!teacher) return reply.code(404).send({ error: 'Teacher not found' });
     return teacher;
+  });
+
+  fastify.get('/teachers/:id/lessons', async (req, reply) => {
+    const id = Number(req.params.id);
+    if (!id) return reply.code(400).send({ error: 'Invalid id' });
+    const { limit = 50, offset = 0 } = req.query;
+    return getLessonsByTeacher(id, { limit: Number(limit), offset: Number(offset) });
   });
 }

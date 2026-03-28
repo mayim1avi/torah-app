@@ -1,6 +1,7 @@
 export { api, setTokenProvider } from './client.js';
 export { useDebounce } from './useDebounce.js';
 export {
+  useCurrentParasha,
   useCategories,
   useCategory,
   useCategoryContent,

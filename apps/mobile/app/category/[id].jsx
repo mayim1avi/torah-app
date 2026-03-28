@@ -1,41 +1,35 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View, Text, ActivityIndicator, TouchableOpacity,
   FlatList, StyleSheet, ScrollView, TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
-import { useEffect, useRef } from 'react';
-import { useCategory, useCategoryContent, useSearch } from '@torah-app/api-client';
+import { useEffect } from 'react';
+import { useCategory, useCategoryContent, useDebounce } from '@torah-app/api-client';
 import { useFilterStore } from '@torah-app/store';
-import { CategoryGrid, Breadcrumb } from '@torah-app/ui';
+import { Breadcrumb } from '@torah-app/ui';
 
 export default function CategoryScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const navigation = useNavigation();
-  const [showContent, setShowContent] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showTeacherFilter, setShowTeacherFilter] = useState(false);
+  const [showInstitutionFilter, setShowInstitutionFilter] = useState(false);
+  const debouncedQ = useDebounce(searchQuery, 300);
 
   const { selectedTeacherIds, selectedInstitutionIds, toggleTeacher, toggleInstitution, clearFilters } = useFilterStore();
 
   const { data: category, isLoading: loadingCategory } = useCategory(id);
-  const { data: content, isLoading: loadingContent } = useCategoryContent(
-    showContent && !searchQuery ? id : null,
-    { teacherIds: selectedTeacherIds, institutionIds: selectedInstitutionIds }
-  );
-  const { data: searchResults, isLoading: loadingSearch } = useSearch(
-    searchQuery
-      ? { q: searchQuery, categoryId: id, teacherIds: selectedTeacherIds, institutionIds: selectedInstitutionIds }
-      : null
-  );
+  const { data: content, isLoading: loadingContent } = useCategoryContent(id, {
+    teacherIds: selectedTeacherIds,
+    institutionIds: selectedInstitutionIds,
+    ...(debouncedQ ? { q: debouncedQ } : {}),
+  });
 
   useEffect(() => {
     if (category?.name) navigation.setOptions({ title: category.name });
   }, [category?.name]);
-
-  useEffect(() => {
-    if (category && category.child_count === 0) setShowContent(true);
-  }, [category]);
 
   if (loadingCategory) {
     return <View style={styles.center}><ActivityIndicator color="#4caf50" size="large" /></View>;
@@ -44,93 +38,56 @@ export default function CategoryScreen() {
     return <View style={styles.center}><Text style={styles.errorText}>קטגוריה לא נמצאה</Text></View>;
   }
 
-  const hasChildren = category.child_count > 0;
-  const filterOptions = content?.filters ?? { teachers: [], institutions: [] };
-
-  return (
-    <View style={styles.container}>
-      {/* Breadcrumb */}
-      <View style={styles.breadcrumbContainer}>
-        <Breadcrumb
-          ancestors={category.ancestors ?? []}
-          onNavigate={(cat) =>
-            cat.parent === null ? router.replace('/') : router.push(`/category/${cat.id}`)
-          }
-        />
-      </View>
-
-      {/* Category grid — if has children and not yet in browse mode */}
-      {hasChildren && !showContent && (
-        <>
-          <CategoryGrid
-            categories={category.children ?? []}
-            onSelect={(child) => router.push(`/category/${child.id}`)}
-          />
-          <TouchableOpacity style={styles.browseButton} onPress={() => setShowContent(true)}>
-            <Text style={styles.browseButtonText}>🔍 עיון בשיעורים</Text>
-          </TouchableOpacity>
-        </>
-      )}
-
-      {/* Content / search view */}
-      {showContent && (
-        <ContentView
-          content={searchQuery ? searchResults : content}
-          loading={searchQuery ? loadingSearch : loadingContent}
-          filters={filterOptions}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          selectedTeacherIds={selectedTeacherIds}
-          selectedInstitutionIds={selectedInstitutionIds}
-          onToggleTeacher={toggleTeacher}
-          onToggleInstitution={toggleInstitution}
-          onClearFilters={clearFilters}
-          onBack={hasChildren ? () => setShowContent(false) : null}
-          onSelectSeries={(s) => router.push(`/series/${s.id}`)}
-          onSelectLesson={(l) => router.push(`/lesson/${l.id}`)}
-        />
-      )}
-    </View>
-  );
-}
-
-function ContentView({
-  content, loading, filters,
-  searchQuery, onSearchChange,
-  selectedTeacherIds, selectedInstitutionIds,
-  onToggleTeacher, onToggleInstitution, onClearFilters,
-  onBack, onSelectSeries, onSelectLesson,
-}) {
-  const [showTeacherFilter, setShowTeacherFilter] = useState(false);
-  const [showInstitutionFilter, setShowInstitutionFilter] = useState(false);
+  const subcategories = category.children ?? [];
+  const series = content?.series ?? [];
+  const lessons = content?.lessons ?? [];
+  const filters = content?.filters ?? { teachers: [], institutions: [] };
   const hasActiveFilters = selectedTeacherIds.length > 0 || selectedInstitutionIds.length > 0;
 
-  // Merge category content and search results into one list
-  const series = searchQuery ? (content?.series ?? []) : (content?.series ?? []);
-  const lessons = searchQuery ? (content?.lessons ?? []) : (content?.lessons ?? []);
+  const listData = buildResultsList(series, lessons);
 
-  return (
-    <View style={styles.contentContainer}>
+  const ListHeader = (
+    <>
+      {/* Subcategories grid */}
+      {subcategories.length > 0 && (
+        <View style={styles.subcatSection}>
+          <Text style={styles.sectionLabel}>תת-קטגוריות</Text>
+          <View style={styles.subcatGrid}>
+            {subcategories.map((sub) => (
+              <TouchableOpacity
+                key={sub.id}
+                style={styles.subcatCard}
+                onPress={() => router.push(`/category/${sub.id}`)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.subcatName} numberOfLines={2}>{sub.name}</Text>
+                <Text style={styles.subcatSub}>
+                  {sub.child_count > 0 ? `${sub.child_count} תתי-קטגוריות` : `${sub.lesson_count ?? 0} שיעורים`}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {(series.length > 0 || lessons.length > 0 || loadingContent) && (
+            <View style={styles.divider} />
+          )}
+        </View>
+      )}
+
       {/* Search bar */}
       <View style={styles.searchRow}>
-        {onBack && (
-          <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
-        )}
         <View style={styles.searchBarWrap}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="חיפוש חופשי..."
+            placeholder="חיפוש בקטגוריה..."
             placeholderTextColor="#4a7c59"
             value={searchQuery}
-            onChangeText={onSearchChange}
+            onChangeText={setSearchQuery}
             returnKeyType="search"
             textAlign="right"
           />
           {searchQuery ? (
-            <TouchableOpacity onPress={() => onSearchChange('')}>
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
               <Text style={styles.clearSearch}>✕</Text>
             </TouchableOpacity>
           ) : null}
@@ -156,7 +113,7 @@ function ContentView({
           </Text>
         </TouchableOpacity>
         {hasActiveFilters && (
-          <TouchableOpacity onPress={onClearFilters}>
+          <TouchableOpacity onPress={clearFilters}>
             <Text style={styles.clearText}>✕ נקה</Text>
           </TouchableOpacity>
         )}
@@ -166,7 +123,7 @@ function ContentView({
         <FilterDropdown
           items={filters.teachers}
           selectedIds={selectedTeacherIds}
-          onToggle={onToggleTeacher}
+          onToggle={toggleTeacher}
           onClose={() => setShowTeacherFilter(false)}
         />
       )}
@@ -174,34 +131,49 @@ function ContentView({
         <FilterDropdown
           items={filters.institutions}
           selectedIds={selectedInstitutionIds}
-          onToggle={onToggleInstitution}
+          onToggle={toggleInstitution}
           onClose={() => setShowInstitutionFilter(false)}
         />
       )}
 
-      {loading ? (
-        <View style={styles.center}><ActivityIndicator color="#4caf50" /></View>
-      ) : (
-        <FlatList
-          data={buildResultsList(series, lessons)}
-          keyExtractor={(item) => item.key}
-          renderItem={({ item }) => (
-            <ResultRow
-              item={item}
-              onSelectSeries={onSelectSeries}
-              onSelectLesson={onSelectLesson}
-            />
-          )}
-          contentContainerStyle={styles.resultsList}
-          ListEmptyComponent={
-            <View style={styles.center}>
-              <Text style={styles.emptyText}>
-                {searchQuery ? 'לא נמצאו תוצאות לחיפוש זה' : 'אין תוכן בקטגוריה זו'}
-              </Text>
-            </View>
+      {loadingContent && <View style={styles.loadingRow}><ActivityIndicator color="#4caf50" /></View>}
+    </>
+  );
+
+  return (
+    <View style={styles.container}>
+      {/* Breadcrumb */}
+      <View style={styles.breadcrumbContainer}>
+        <Breadcrumb
+          ancestors={category.ancestors ?? []}
+          onNavigate={(cat) =>
+            cat.parent === null ? router.replace('/') : router.push(`/category/${cat.id}`)
           }
         />
-      )}
+      </View>
+
+      <FlatList
+        data={listData}
+        keyExtractor={(item) => item.key}
+        ListHeaderComponent={ListHeader}
+        renderItem={({ item }) => (
+          <ResultRow
+            item={item}
+            onSelectSeries={(s) => router.push(`/series/${s.id}`)}
+            onSelectLesson={(l) => router.push(`/lesson/${l.id}`)}
+          />
+        )}
+        contentContainerStyle={styles.resultsList}
+        ListEmptyComponent={
+          !loadingContent ? (
+            <View style={styles.emptyWrap}>
+              <Text style={styles.emptyText}>
+                {subcategories.length > 0 ? 'אין תוכן ישיר בקטגוריה זו' : 'לא נמצאו תוצאות'}
+              </Text>
+            </View>
+          ) : null
+        }
+      />
     </View>
   );
 }
@@ -227,9 +199,7 @@ function ResultRow({ item, onSelectSeries, onSelectLesson }) {
   const { data } = item;
   const isSeries = item.type === 'series';
   const title = isSeries ? data.name : (data.title ?? data.name);
-  const sub1 = isSeries
-    ? `${data.lesson_count} שיעורים`
-    : data.teacher_name ?? '';
+  const sub1 = isSeries ? `${data.lesson_count} שיעורים` : data.teacher_name ?? '';
   const sub2 = data.institution_name ?? '';
 
   return (
@@ -295,17 +265,50 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#1a3a2a',
   },
-  browseButton: {
-    margin: 16,
-    padding: 14,
+  subcatSection: { paddingTop: 8 },
+  sectionLabel: {
+    color: '#81c784',
+    fontSize: 12,
+    fontWeight: '700',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    textAlign: 'right',
+    letterSpacing: 0.5,
+  },
+  subcatGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 10,
+    gap: 8,
+  },
+  subcatCard: {
+    width: '30%',
+    minHeight: 62,
     backgroundColor: '#1a3a2a',
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#2d5c40',
-    alignItems: 'center',
+    padding: 10,
+    justifyContent: 'space-between',
   },
-  browseButtonText: { color: '#4caf50', fontWeight: '700', fontSize: 15 },
-  contentContainer: { flex: 1 },
+  subcatName: {
+    color: '#e8f5e9',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+  subcatSub: {
+    color: '#81c784',
+    fontSize: 10,
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  divider: {
+    borderTopWidth: 1,
+    borderTopColor: '#1a3a2a',
+    marginTop: 12,
+    marginBottom: 4,
+  },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -313,17 +316,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a1f14',
     borderBottomWidth: 1,
     borderBottomColor: '#1a3a2a',
-    gap: 8,
   },
-  backButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#1a3a2a',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backButtonText: { color: '#e8f5e9', fontSize: 18 },
   searchBarWrap: {
     flex: 1,
     flexDirection: 'row',
@@ -359,6 +352,7 @@ const styles = StyleSheet.create({
   activeChip: { backgroundColor: '#2d5c40', borderColor: '#4caf50' },
   chipText: { color: '#e8f5e9', fontSize: 13 },
   clearText: { color: '#ef9a9a', fontSize: 13 },
+  loadingRow: { padding: 24, alignItems: 'center' },
   sectionHeader: {
     color: '#81c784',
     fontSize: 12,
@@ -401,6 +395,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   chevron: { color: '#4a7c59', fontSize: 20 },
+  emptyWrap: { padding: 32, alignItems: 'center' },
   emptyText: { color: '#4a7c59', fontSize: 14, textAlign: 'center' },
   errorText: { color: '#ef9a9a', fontSize: 16 },
   dropdown: {

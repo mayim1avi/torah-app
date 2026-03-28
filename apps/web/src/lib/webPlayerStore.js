@@ -4,17 +4,25 @@ import { create } from 'zustand';
 // Singleton Audio element (client-only)
 let _audio = null;
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+function audioProxyUrl(url) {
+  if (!url) return url;
+  // Route through proxy so the API server handles range requests for servers that don't support them
+  return `${API_BASE}/api/audio/proxy?url=${encodeURIComponent(url)}`;
+}
+
 function ensureAudio(store) {
   if (typeof window === 'undefined') return null;
   if (_audio) return _audio;
 
   _audio = new Audio();
 
-  _audio.addEventListener('loadedmetadata', () => {
-    store.setState({ isLoading: false, durationMs: _audio.duration * 1000 });
+  _audio.addEventListener('loadedmetadata', (e) => {
+    store.setState({ isLoading: false, durationMs: e.target.duration * 1000 });
   });
-  _audio.addEventListener('timeupdate', () => {
-    store.setState({ positionMs: _audio.currentTime * 1000, durationMs: _audio.duration * 1000 || 0 });
+  _audio.addEventListener('timeupdate', (e) => {
+    store.setState({ positionMs: e.target.currentTime * 1000, durationMs: e.target.duration * 1000 || 0 });
   });
   _audio.addEventListener('play', () => store.setState({ isPlaying: true, isLoading: false }));
   _audio.addEventListener('pause', () => store.setState({ isPlaying: false }));
@@ -74,7 +82,7 @@ export const useWebPlayerStore = create((set, get, store) => ({
     if (!audio || !lesson.link) return;
     const q = queue ?? [lesson];
     const idx = q.findIndex((l) => l.id === lesson.id);
-    audio.src = lesson.link;
+    audio.src = audioProxyUrl(lesson.link);
     audio.playbackRate = get().speed;
     audio.play().catch(() => {});
     set({ currentLesson: lesson, queue: q, queueIndex: idx >= 0 ? idx : 0, isLoading: true, positionMs: 0, durationMs: 0 });
@@ -82,22 +90,27 @@ export const useWebPlayerStore = create((set, get, store) => ({
   },
 
   togglePlayPause: () => {
-    const audio = ensureAudio(store);
-    if (!audio) return;
-    if (get().isPlaying) audio.pause();
-    else audio.play().catch(() => {});
+    if (!_audio) return;
+    if (get().isPlaying) _audio.pause();
+    else _audio.play().catch(() => {});
   },
 
   seek: (ms) => {
-    const audio = ensureAudio(store);
-    if (!audio) return;
-    audio.currentTime = ms / 1000;
+    if (!_audio) return;
+    _audio.currentTime = ms / 1000;
     set({ positionMs: ms });
   },
 
+  seekRelative: (deltaMs) => {
+    if (!_audio) return;
+    const dur = isNaN(_audio.duration) ? 0 : _audio.duration;
+    const next = Math.max(0, Math.min(_audio.currentTime + deltaMs / 1000, dur || Infinity));
+    _audio.currentTime = next;
+    set({ positionMs: next * 1000 });
+  },
+
   setSpeed: (speed) => {
-    const audio = ensureAudio(store);
-    if (audio) audio.playbackRate = speed;
+    if (_audio) _audio.playbackRate = speed;
     set({ speed });
   },
 

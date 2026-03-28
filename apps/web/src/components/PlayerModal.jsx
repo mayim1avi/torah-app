@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useWebPlayerStore } from '../lib/webPlayerStore.js';
 
 function fmt(ms) {
@@ -20,42 +20,48 @@ const C = {
     borderTopLeftRadius: 20, borderTopRightRadius: 20,
     width: '100%', maxWidth: 600,
     padding: '24px 24px 48px',
-    display: 'flex', flexDirection: 'column', gap: 16,
-    maxHeight: '90vh', overflowY: 'auto',
+    display: 'flex', flexDirection: 'column', gap: 20,
+    maxHeight: '90vh', overflowY: 'auto', position: 'relative',
   },
-  handle: {
-    width: 40, height: 4, borderRadius: 2,
-    backgroundColor: '#2d5c40', margin: '0 auto 8px',
-  },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#2d5c40', margin: '0 auto' },
   artwork: {
     width: 140, height: 140, borderRadius: 18,
-    backgroundColor: '#1a3a2a',
-    border: '1px solid #2d5c40',
+    backgroundColor: '#1a3a2a', border: '1px solid #2d5c40',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     fontSize: 64, margin: '0 auto',
   },
-  title: { color: '#e8f5e9', fontSize: 17, fontWeight: 700, textAlign: 'center', lineHeight: 1.4 },
-  teacher: { color: '#81c784', fontSize: 14, textAlign: 'center' },
-  queuePos: { color: '#4a7c59', fontSize: 12, textAlign: 'center' },
-  progressWrap: { display: 'flex', flexDirection: 'column', gap: 4 },
+  titleWrap: { textAlign: 'center' },
+  title: { color: '#e8f5e9', fontSize: 17, fontWeight: 700, lineHeight: 1.4 },
+  teacher: { color: '#81c784', fontSize: 14, marginTop: 4 },
+  queuePos: { color: '#4a7c59', fontSize: 12, marginTop: 4 },
+  progressWrap: { display: 'flex', flexDirection: 'column', gap: 6 },
   track: {
-    height: 4, backgroundColor: '#1a3a2a', borderRadius: 2, cursor: 'pointer', position: 'relative',
+    height: 4, backgroundColor: '#1a3a2a', borderRadius: 2,
+    cursor: 'pointer', position: 'relative', direction: 'ltr',
   },
-  times: { display: 'flex', justifyContent: 'space-between', color: '#4a7c59', fontSize: 11 },
-  controls: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20 },
-  ctrlBtn: {
+  times: { display: 'flex', justifyContent: 'space-between', color: '#4a7c59', fontSize: 11, direction: 'ltr' },
+  controls: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, direction: 'ltr' },
+  navBtn: (enabled) => ({
     background: 'none', border: 'none', color: '#81c784',
-    fontSize: 24, cursor: 'pointer', padding: 8, opacity: 1,
+    fontSize: 22, cursor: enabled ? 'pointer' : 'default',
+    padding: 8, opacity: enabled ? 1 : 0.25,
+  }),
+  skipBtn: {
+    background: 'none', border: 'none', color: '#81c784',
+    cursor: 'pointer', padding: '6px 8px',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
   },
-  ctrlBtnDisabled: { opacity: 0.3, cursor: 'default' },
+  skipIcon: { fontSize: 22 },
+  skipLabel: { fontSize: 10, color: '#4a7c59', fontWeight: 700 },
   playBtn: {
-    width: 64, height: 64, borderRadius: '50%', border: 'none',
-    backgroundColor: '#4caf50', fontSize: 28, cursor: 'pointer',
+    width: 68, height: 68, borderRadius: '50%', border: 'none',
+    backgroundColor: '#4caf50', fontSize: 30, cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
+    margin: '0 8px',
   },
   speeds: { display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' },
   speedChip: (active) => ({
-    padding: '4px 12px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
+    padding: '5px 14px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
     backgroundColor: active ? '#4caf50' : '#1a3a2a',
     color: active ? '#0a1f14' : '#81c784',
     border: `1px solid ${active ? '#4caf50' : '#2d5c40'}`,
@@ -78,12 +84,12 @@ export function PlayerModal({ onClose }) {
   const speed = useWebPlayerStore((s) => s.speed);
   const togglePlayPause = useWebPlayerStore((s) => s.togglePlayPause);
   const seek = useWebPlayerStore((s) => s.seek);
+  const seekRelative = useWebPlayerStore((s) => s.seekRelative);
   const setSpeed = useWebPlayerStore((s) => s.setSpeed);
   const playNext = useWebPlayerStore((s) => s.playNext);
   const playPrev = useWebPlayerStore((s) => s.playPrev);
   const trackRef = useRef(null);
 
-  // Close on Escape
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
@@ -95,6 +101,7 @@ export function PlayerModal({ onClose }) {
   const pct = durationMs > 0 ? Math.min((positionMs / durationMs) * 100, 100) : 0;
   const canPrev = queueIndex > 0;
   const canNext = queueIndex < queue.length - 1;
+  const hasSeries = queue.length > 1;
 
   function handleTrackClick(e) {
     if (!trackRef.current || !durationMs) return;
@@ -105,23 +112,21 @@ export function PlayerModal({ onClose }) {
 
   return (
     <div style={C.overlay} onClick={onClose}>
-      <div style={{ ...C.sheet, position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+      <div style={C.sheet} onClick={(e) => e.stopPropagation()}>
         <button style={C.closeBtn} onClick={onClose}>✕</button>
         <div style={C.handle} />
 
         <div style={C.artwork}>{lesson.has_audio ? '🎵' : '▶️'}</div>
-        <div style={C.title}>{lesson.title ?? lesson.name}</div>
-        {lesson.teacher_name && <div style={C.teacher}>{lesson.teacher_name}</div>}
-        {queue.length > 1 && (
-          <div style={C.queuePos}>{queueIndex + 1} / {queue.length}</div>
-        )}
 
+        <div style={C.titleWrap}>
+          <div style={C.title}>{lesson.title ?? lesson.name}</div>
+          {lesson.teacher_name && <div style={C.teacher}>{lesson.teacher_name}</div>}
+          {hasSeries && <div style={C.queuePos}>{queueIndex + 1} / {queue.length}</div>}
+        </div>
+
+        {/* Progress bar */}
         <div style={C.progressWrap}>
-          <div
-            ref={trackRef}
-            style={C.track}
-            onClick={handleTrackClick}
-          >
+          <div ref={trackRef} style={C.track} onClick={handleTrackClick}>
             <div style={{ height: '100%', width: `${pct}%`, backgroundColor: '#4caf50', borderRadius: 2 }} />
           </div>
           <div style={C.times}>
@@ -130,22 +135,36 @@ export function PlayerModal({ onClose }) {
           </div>
         </div>
 
+        {/* Controls */}
         <div style={C.controls}>
-          <button
-            style={{ ...C.ctrlBtn, ...(canPrev ? {} : C.ctrlBtnDisabled) }}
-            onClick={canPrev ? playPrev : undefined}
-            disabled={!canPrev}
-          >⏮</button>
+          {hasSeries && (
+            <button style={C.navBtn(canPrev)} onClick={canPrev ? playPrev : undefined} title="שיעור קודם">
+              ⏮
+            </button>
+          )}
+
+          <button style={C.skipBtn} onClick={() => seekRelative(-15000)} title="15 שניות אחורה">
+            <span style={C.skipIcon}>↺</span>
+            <span style={C.skipLabel}>15</span>
+          </button>
+
           <button style={C.playBtn} onClick={togglePlayPause}>
             {isPlaying ? '⏸' : '▶'}
           </button>
-          <button
-            style={{ ...C.ctrlBtn, ...(canNext ? {} : C.ctrlBtnDisabled) }}
-            onClick={canNext ? playNext : undefined}
-            disabled={!canNext}
-          >⏭</button>
+
+          <button style={C.skipBtn} onClick={() => seekRelative(30000)} title="30 שניות קדימה">
+            <span style={C.skipIcon}>↻</span>
+            <span style={C.skipLabel}>30</span>
+          </button>
+
+          {hasSeries && (
+            <button style={C.navBtn(canNext)} onClick={canNext ? playNext : undefined} title="שיעור הבא">
+              ⏭
+            </button>
+          )}
         </div>
 
+        {/* Speed */}
         <div style={C.speeds}>
           {SPEEDS.map((s) => (
             <button key={s} style={C.speedChip(speed === s)} onClick={() => setSpeed(s)}>

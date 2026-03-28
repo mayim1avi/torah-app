@@ -10,6 +10,8 @@ import institutionRoutes from './routes/institutions.js';
 import searchRoutes from './routes/search.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
+import parashaRoutes from './routes/parasha.js';
+import audioRoutes from './routes/audio.js';
 
 const fastify = Fastify({ logger: true });
 
@@ -36,6 +38,8 @@ await fastify.register(lessonRoutes, { prefix: '/api' });
 await fastify.register(teacherRoutes, { prefix: '/api' });
 await fastify.register(institutionRoutes, { prefix: '/api' });
 await fastify.register(searchRoutes, { prefix: '/api' });
+await fastify.register(parashaRoutes, { prefix: '/api' });
+await fastify.register(audioRoutes, { prefix: '/api' });
 
 // Auth routes (no prefix — /auth/login, /auth/register, /auth/me)
 await fastify.register(authRoutes);

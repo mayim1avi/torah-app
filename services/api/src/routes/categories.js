@@ -3,6 +3,7 @@ import {
   getCategoryById,
   getChildren,
   getAncestors,
+  generateVirtualChildren,
 } from '../db/categories.js';
 import {
   getLessonsByCategory,
@@ -18,25 +19,51 @@ export default async function categoryRoutes(fastify) {
   });
 
   // GET /api/categories/:id — category detail + children + ancestors
+  // :id can be a real id (11) or a virtual id (11_3)
   fastify.get('/categories/:id', async (req, reply) => {
-    const id = Number(req.params.id);
-    if (!id) return reply.code(400).send({ error: 'Invalid id' });
+    const rawId = req.params.id;
+    const isVirtual = rawId.includes('_');
+    const realId = Number(isVirtual ? rawId.split('_')[0] : rawId);
+    const page = isVirtual ? Number(rawId.split('_')[1]) : null;
+
+    if (!realId) return reply.code(400).send({ error: 'Invalid id' });
 
     const [category, children, ancestors] = await Promise.all([
-      getCategoryById(id),
-      getChildren(id),
-      getAncestors(id),
+      getCategoryById(realId),
+      getChildren(realId),
+      getAncestors(realId),
     ]);
 
     if (!category) return reply.code(404).send({ error: 'Category not found' });
 
-    return { ...category, children, ancestors };
+    const virtualChildren = generateVirtualChildren(category);
+    const allChildren = [...virtualChildren, ...children];
+
+    // For virtual subcategory pages, add the virtual node itself to ancestors
+    if (isVirtual) {
+      const virtualName = (virtualChildren.find(v => v.id === rawId) ?? {}).name ?? rawId;
+      ancestors.push({ id: realId, name: category.name });
+      return {
+        ...category,
+        id: rawId,
+        name: virtualName,
+        page,
+        children: [],
+        ancestors,
+        virtual: true,
+      };
+    }
+
+    return { ...category, children: allChildren, ancestors };
   });
 
-  // GET /api/categories/:id/content — series + lessons in a category
-  // Query params: teacherIds (comma-sep), institutionIds (comma-sep), type (all|series|lessons), limit, offset
+  // GET /api/categories/:id/content
   fastify.get('/categories/:id/content', async (req, reply) => {
-    const id = Number(req.params.id);
+    const rawId = req.params.id;
+    const isVirtual = rawId.includes('_');
+    const id = Number(isVirtual ? rawId.split('_')[0] : rawId);
+    const page = isVirtual ? Number(rawId.split('_')[1]) : null;
+
     if (!id) return reply.code(400).send({ error: 'Invalid id' });
 
     const {
@@ -45,6 +72,7 @@ export default async function categoryRoutes(fastify) {
       type = 'all',
       limit = 50,
       offset = 0,
+      q = '',
     } = req.query;
 
     const teacherIds = teacherIdsRaw
@@ -53,7 +81,7 @@ export default async function categoryRoutes(fastify) {
     const institutionIds = institutionIdsRaw
       ? institutionIdsRaw.split(',').map(Number).filter(Boolean)
       : [];
-    const opts = { teacherIds, institutionIds, limit: Number(limit), offset: Number(offset) };
+    const opts = { teacherIds, institutionIds, q, page, limit: Number(limit), offset: Number(offset) };
 
     const [series, lessons, teachers, institutions] = await Promise.all([
       type !== 'lessons' ? getSeriesByCategory(id, opts) : [],

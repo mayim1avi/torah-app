@@ -3,6 +3,10 @@ import { api } from './client.js';
 
 // ── Browse ────────────────────────────────────────────────────────────────────
 
+export function useCurrentParasha() {
+  return useQuery({ queryKey: ['parasha-current'], queryFn: () => api.getCurrentParasha() });
+}
+
 export function useCategories() {
   return useQuery({ queryKey: ['categories'], queryFn: () => api.getCategories() });
 }

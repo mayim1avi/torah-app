@@ -42,10 +42,11 @@ export const api = {
     apiFetch('/auth/me'),
 
   // Categories
+  getCurrentParasha: () => apiFetch('/api/parasha/current'),
   getCategories: () => apiFetch('/api/categories'),
   getCategory: (id) => apiFetch(`/api/categories/${id}`),
-  getCategoryContent: (id, { teacherIds = [], institutionIds = [], type = 'all', limit = 50, offset = 0 } = {}) =>
-    apiFetch(`/api/categories/${id}/content${buildParams({ teacherIds, institutionIds, type, limit, offset })}`),
+  getCategoryContent: (id, { teacherIds = [], institutionIds = [], type = 'all', limit = 50, offset = 0, q = '' } = {}) =>
+    apiFetch(`/api/categories/${id}/content${buildParams({ teacherIds, institutionIds, type, limit, offset, ...(q ? { q } : {}) })}`),
 
   // Series
   getSeries: (id) => apiFetch(`/api/series/${id}`),

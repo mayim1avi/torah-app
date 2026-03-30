@@ -4,6 +4,7 @@ export async function getSavedLessons(userId) {
   return query(
     `SELECT
        l.id, ANY_VALUE(l.title) AS title, ANY_VALUE(l.name) AS name,
+       ANY_VALUE(l.link) AS link,
        ANY_VALUE(l.date) AS date, ANY_VALUE(l.has_audio) AS has_audio,
        ANY_VALUE(l.series_id) AS series_id,
        ANY_VALUE(i.name) AS institution_name,

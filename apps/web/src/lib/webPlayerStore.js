@@ -61,6 +61,24 @@ function stopSync() {
   if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; }
 }
 
+const GUEST_PLAYS_KEY = 'torah_guest_plays';
+
+function getGuestPlays() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(GUEST_PLAYS_KEY) || 'null');
+    const month = new Date().toISOString().slice(0, 7);
+    return stored?.month === month ? stored : { month, lessonIds: [] };
+  } catch { return { month: new Date().toISOString().slice(0, 7), lessonIds: [] }; }
+}
+
+function recordGuestPlay(lessonId) {
+  const plays = getGuestPlays();
+  if (!plays.lessonIds.includes(lessonId)) {
+    plays.lessonIds.push(lessonId);
+    localStorage.setItem(GUEST_PLAYS_KEY, JSON.stringify(plays));
+  }
+}
+
 export const useWebPlayerStore = create((set, get, store) => ({
   currentLesson: null,
   queue: [],
@@ -70,6 +88,7 @@ export const useWebPlayerStore = create((set, get, store) => ({
   positionMs: 0,
   durationMs: 0,
   speed: 1,
+  loginGateVisible: false,
   _getToken: () => null,
 
   // Call once at app startup to wire progress sync
@@ -80,14 +99,26 @@ export const useWebPlayerStore = create((set, get, store) => ({
   playLesson: (lesson, queue = null) => {
     const audio = ensureAudio(store);
     if (!audio || !lesson.link) return;
+    // Guest lesson limit: 5 unique lessons per calendar month
+    const token = get()._getToken();
+    if (!token && typeof window !== 'undefined') {
+      const plays = getGuestPlays();
+      if (!plays.lessonIds.includes(lesson.id) && plays.lessonIds.length >= 5) {
+        set({ loginGateVisible: true });
+        return;
+      }
+      recordGuestPlay(lesson.id);
+    }
     const q = queue ?? [lesson];
     const idx = q.findIndex((l) => l.id === lesson.id);
     audio.src = audioProxyUrl(lesson.link);
     audio.playbackRate = get().speed;
     audio.play().catch(() => {});
-    set({ currentLesson: lesson, queue: q, queueIndex: idx >= 0 ? idx : 0, isLoading: true, positionMs: 0, durationMs: 0 });
+    set({ currentLesson: lesson, queue: q, queueIndex: idx >= 0 ? idx : 0, isLoading: true, positionMs: 0, durationMs: 0, loginGateVisible: false });
     startSync(get()._getToken);
   },
+
+  dismissLoginGate: () => set({ loginGateVisible: false }),
 
   togglePlayPause: () => {
     if (!_audio) return;

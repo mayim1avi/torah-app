@@ -26,9 +26,11 @@ export async function getHistory(userId, { limit = 30 } = {}) {
   return rawQuery(
     `SELECT
        l.id, ANY_VALUE(l.title) AS title, ANY_VALUE(l.name) AS name,
+       ANY_VALUE(l.link) AS link,
        ANY_VALUE(l.has_audio) AS has_audio,
        ANY_VALUE(l.series_id) AS series_id,
        ANY_VALUE(i.name) AS institution_name,
+       ANY_VALUE(t.id) AS teacher_id,
        ANY_VALUE(t.name) AS teacher_name,
        up.position_ms, up.duration_ms, up.completed, up.last_played_at
      FROM user_progress up

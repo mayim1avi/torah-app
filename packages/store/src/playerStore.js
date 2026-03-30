@@ -1,5 +1,28 @@
 import { create } from 'zustand';
 
+const GUEST_PLAYS_KEY = 'torah_guest_plays';
+
+async function getGuestPlays() {
+  try {
+    const SecureStore = await import('expo-secure-store');
+    const raw = await SecureStore.getItemAsync(GUEST_PLAYS_KEY);
+    const stored = raw ? JSON.parse(raw) : null;
+    const month = new Date().toISOString().slice(0, 7);
+    return stored?.month === month ? stored : { month, lessonIds: [] };
+  } catch { return { month: new Date().toISOString().slice(0, 7), lessonIds: [] }; }
+}
+
+async function recordGuestPlay(lessonId) {
+  try {
+    const SecureStore = await import('expo-secure-store');
+    const plays = await getGuestPlays();
+    if (!plays.lessonIds.includes(lessonId)) {
+      plays.lessonIds.push(lessonId);
+      await SecureStore.setItemAsync(GUEST_PLAYS_KEY, JSON.stringify(plays));
+    }
+  } catch {}
+}
+
 export const usePlayerStore = create((set, get) => ({
   // ── State ────────────────────────────────────────────────────────────────
   currentLesson: null,   // full lesson object
@@ -10,14 +33,28 @@ export const usePlayerStore = create((set, get) => ({
   positionMs: 0,
   durationMs: 0,
   speed: 1,
+  loginGateVisible: false,
 
   // ── Actions ──────────────────────────────────────────────────────────────
+
+  dismissLoginGate: () => set({ loginGateVisible: false }),
 
   /**
    * Start playing a lesson, optionally with a queue.
    * If queue is omitted the lesson plays solo.
    */
-  playLesson: (lesson, queue = null) => {
+  playLesson: async (lesson, queue = null) => {
+    // Guest lesson limit: 5 unique lessons per calendar month
+    const { useAuthStore } = await import('./authStore.js');
+    const token = useAuthStore.getState().token;
+    if (!token) {
+      const plays = await getGuestPlays();
+      if (!plays.lessonIds.includes(lesson.id) && plays.lessonIds.length >= 5) {
+        set({ loginGateVisible: true });
+        return;
+      }
+      await recordGuestPlay(lesson.id);
+    }
     const resolvedQueue = queue ?? [lesson];
     const idx = resolvedQueue.findIndex((l) => l.id === lesson.id);
     set({
@@ -28,6 +65,7 @@ export const usePlayerStore = create((set, get) => ({
       isLoading: true,
       positionMs: 0,
       durationMs: 0,
+      loginGateVisible: false,
     });
   },
 

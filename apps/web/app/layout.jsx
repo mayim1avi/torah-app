@@ -2,6 +2,7 @@ import './globals.css';
 import { Providers } from '../src/components/Providers.jsx';
 import { Nav } from '../src/components/Nav.jsx';
 import { MiniPlayer } from '../src/components/MiniPlayer.jsx';
+import { LoginGateModal } from '../src/components/LoginGateModal.jsx';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,7 @@ export default function RootLayout({ children }) {
           <Nav />
           <main>{children}</main>
           <MiniPlayer />
+          <LoginGateModal />
         </Providers>
       </body>
     </html>

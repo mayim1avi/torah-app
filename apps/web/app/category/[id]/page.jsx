@@ -1,7 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useCategory, useCategoryContent, useDebounce } from '@torah-app/api-client';
+import { useCategory, useCategoryContent, useTeachers, useInstitutions, useDebounce } from '@torah-app/api-client';
 import { useWebPlayerStore } from '../../../src/lib/webPlayerStore.js';
 
 const C = {
@@ -19,9 +19,9 @@ const C = {
   cardName: { color: '#e8f5e9', fontSize: 13, fontWeight: 600 },
   cardSub: { color: '#4a7c59', fontSize: 11, marginTop: 2 },
   divider: { borderTop: '1px solid #1a3a2a', marginBottom: 20 },
-  controls: { display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
+  controls: { display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' },
   searchInput: {
-    flex: 1, minWidth: 200,
+    flex: 1, minWidth: 180,
     backgroundColor: '#1a3a2a', border: '1px solid #2d5c40',
     borderRadius: 10, padding: '9px 14px', color: '#e8f5e9',
     fontSize: 14, direction: 'rtl', outline: 'none',
@@ -33,6 +33,29 @@ const C = {
     border: `1px solid ${active ? '#4caf50' : '#2d5c40'}`,
     fontWeight: active ? 700 : 400,
   }),
+  filterRow: { display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8, alignItems: 'flex-start' },
+  filterWrap: { position: 'relative', flex: '1 1 180px' },
+  filterInput: {
+    backgroundColor: '#1a3a2a', border: '1px solid #2d5c40',
+    borderRadius: 10, padding: '9px 12px', color: '#e8f5e9',
+    fontSize: 13, direction: 'rtl', outline: 'none', width: '100%',
+  },
+  dropdown: {
+    position: 'absolute', top: '100%', right: 0, left: 0, zIndex: 50,
+    backgroundColor: '#0a1f14', border: '1px solid #2d5c40', borderRadius: 10,
+    maxHeight: 200, overflowY: 'auto', marginTop: 2,
+  },
+  dropdownItem: {
+    padding: '8px 12px', cursor: 'pointer', color: '#e8f5e9', fontSize: 13,
+    textAlign: 'right', borderBottom: '1px solid #1a3a2a',
+  },
+  pills: { display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 },
+  pill: {
+    display: 'flex', alignItems: 'center', gap: 4,
+    backgroundColor: '#1a3a2a', border: '1px solid #2d5c40',
+    borderRadius: 16, padding: '4px 10px', fontSize: 12, color: '#81c784',
+  },
+  pillX: { cursor: 'pointer', color: '#4a7c59', fontWeight: 700, marginRight: 2 },
   row: {
     display: 'flex', alignItems: 'center', gap: 12,
     padding: '12px 16px', borderBottom: '1px solid #1a3a2a',
@@ -56,14 +79,59 @@ export default function CategoryPage() {
   const router = useRouter();
   const [q, setQ] = useState('');
   const [type, setType] = useState('all');
-  const debouncedQ = useDebounce(q, 300);
+  const [teacherSearch, setTeacherSearch] = useState('');
+  const [instSearch, setInstSearch] = useState('');
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState([]);
+  const [selectedInstIds, setSelectedInstIds] = useState([]);
+  const [teacherNames, setTeacherNames] = useState({});
+  const [showTeachers, setShowTeachers] = useState(false);
+  const [showInsts, setShowInsts] = useState(false);
+  const teacherRef = useRef(null);
+  const instRef = useRef(null);
   const playLesson = useWebPlayerStore((s) => s.playLesson);
+
+  const debouncedQ = useDebounce(q, 300);
+  const debouncedTeacher = useDebounce(teacherSearch, 250);
 
   const { data: category } = useCategory(id);
   const { data: content, isLoading } = useCategoryContent(id, {
-    type, limit: 50, offset: 0,
+    type,
+    limit: 50,
+    offset: 0,
     ...(debouncedQ ? { q: debouncedQ } : {}),
+    ...(selectedTeacherIds.length ? { teacherIds: selectedTeacherIds } : {}),
+    ...(selectedInstIds.length ? { institutionIds: selectedInstIds } : {}),
   });
+
+  const { data: teacherResults = [] } = useTeachers(
+    showTeachers && debouncedTeacher ? { search: debouncedTeacher, limit: 50 } : { limit: 0 }
+  );
+  const { data: institutions = [] } = useInstitutions({ limit: 200 });
+  const filteredInsts = instSearch
+    ? institutions.filter((i) => i.name?.includes(instSearch))
+    : institutions;
+
+  useEffect(() => {
+    function handler(e) {
+      if (teacherRef.current && !teacherRef.current.contains(e.target)) setShowTeachers(false);
+      if (instRef.current && !instRef.current.contains(e.target)) setShowInsts(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  function addTeacher(t) {
+    setSelectedTeacherIds((ids) => ids.includes(t.id) ? ids : [...ids, t.id]);
+    setTeacherNames((n) => ({ ...n, [t.id]: t.name }));
+    setTeacherSearch('');
+    setShowTeachers(false);
+  }
+
+  function addInst(i) {
+    setSelectedInstIds((ids) => ids.includes(i.id) ? ids : [...ids, i.id]);
+    setInstSearch('');
+    setShowInsts(false);
+  }
 
   const ancestors = category?.ancestors ?? [];
   const subcategories = category?.children ?? [];
@@ -89,7 +157,7 @@ export default function CategoryPage() {
         )}
       </div>
 
-      {/* Subcategories (real children + virtual) */}
+      {/* Subcategories */}
       {subcategories.length > 0 && (
         <>
           <div style={C.sectionTitle}>
@@ -110,9 +178,7 @@ export default function CategoryPage() {
               </div>
             ))}
           </div>
-          {(series.length > 0 || lessons.length > 0 || isLoading) && (
-            <div style={C.divider} />
-          )}
+          {(series.length > 0 || lessons.length > 0 || isLoading) && <div style={C.divider} />}
         </>
       )}
 
@@ -130,6 +196,77 @@ export default function CategoryPage() {
           </button>
         ))}
       </div>
+
+      {/* Teacher + institution filters */}
+      <div style={C.filterRow}>
+        <div style={C.filterWrap} ref={teacherRef}>
+          <input
+            style={C.filterInput}
+            placeholder="סנן לפי מרצה..."
+            value={teacherSearch}
+            onChange={(e) => { setTeacherSearch(e.target.value); setShowTeachers(true); }}
+            onFocus={() => setShowTeachers(true)}
+          />
+          {showTeachers && teacherResults.length > 0 && (
+            <div style={C.dropdown}>
+              {teacherResults.map((t) => (
+                <div
+                  key={t.id}
+                  style={C.dropdownItem}
+                  onMouseDown={() => addTeacher(t)}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#1a3a2a'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                >
+                  {t.name}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={C.filterWrap} ref={instRef}>
+          <input
+            style={C.filterInput}
+            placeholder="סנן לפי מוסד..."
+            value={instSearch}
+            onChange={(e) => { setInstSearch(e.target.value); setShowInsts(true); }}
+            onFocus={() => setShowInsts(true)}
+          />
+          {showInsts && filteredInsts.length > 0 && (
+            <div style={C.dropdown}>
+              {filteredInsts.slice(0, 50).map((i) => (
+                <div
+                  key={i.id}
+                  style={C.dropdownItem}
+                  onMouseDown={() => addInst(i)}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#1a3a2a'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                >
+                  {i.name}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Active filter pills */}
+      {(selectedTeacherIds.length > 0 || selectedInstIds.length > 0) && (
+        <div style={C.pills}>
+          {selectedTeacherIds.map((tid) => (
+            <span key={tid} style={C.pill}>
+              <span style={C.pillX} onClick={() => setSelectedTeacherIds((ids) => ids.filter((x) => x !== tid))}>✕</span>
+              {teacherNames[tid] ?? `מרצה ${tid}`}
+            </span>
+          ))}
+          {selectedInstIds.map((iid) => (
+            <span key={iid} style={C.pill}>
+              <span style={C.pillX} onClick={() => setSelectedInstIds((ids) => ids.filter((x) => x !== iid))}>✕</span>
+              {institutions.find((i) => i.id === iid)?.name ?? `מוסד ${iid}`}
+            </span>
+          ))}
+        </div>
+      )}
 
       {isLoading && <div style={C.loading}>טוען...</div>}
 
@@ -164,7 +301,7 @@ export default function CategoryPage() {
             <div
               key={l.id}
               style={C.row}
-              onClick={() => l.link ? playLesson(l, lessons.filter(x => x.link)) : router.push(`/lesson/${l.id}`)}
+              onClick={() => l.link ? playLesson(l, lessons.filter((x) => x.link)) : router.push(`/lesson/${l.id}`)}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#0f2a1a'; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#0a1f14'; }}
             >

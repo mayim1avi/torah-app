@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useWebPlayerStore } from '../lib/webPlayerStore.js';
 
 function fmt(ms) {
@@ -89,6 +90,7 @@ export function PlayerModal({ onClose }) {
   const playNext = useWebPlayerStore((s) => s.playNext);
   const playPrev = useWebPlayerStore((s) => s.playPrev);
   const trackRef = useRef(null);
+  const router = useRouter();
 
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
@@ -120,7 +122,14 @@ export function PlayerModal({ onClose }) {
 
         <div style={C.titleWrap}>
           <div style={C.title}>{lesson.title ?? lesson.name}</div>
-          {lesson.teacher_name && <div style={C.teacher}>{lesson.teacher_name}</div>}
+          {lesson.teacher_name && (
+            <div
+              style={{ ...C.teacher, cursor: lesson.teacher_id ? 'pointer' : 'default', textDecoration: lesson.teacher_id ? 'underline' : 'none' }}
+              onClick={() => lesson.teacher_id && router.push(`/teacher/${lesson.teacher_id}`)}
+            >
+              {lesson.teacher_name}
+            </div>
+          )}
           {hasSeries && <div style={C.queuePos}>{queueIndex + 1} / {queue.length}</div>}
         </div>
 

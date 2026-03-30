@@ -64,10 +64,19 @@ export function useInstitutionLessons(id, opts = {}) {
 }
 
 export function useSearch(params) {
+  const hasFilter = !!(
+    params?.q?.trim() ||
+    params?.teacherIds?.length ||
+    params?.institutionIds?.length
+  );
   return useQuery({
     queryKey: ['search', params],
     queryFn: () => api.search(params),
-    enabled: !!(params?.q?.trim()),
+    enabled: hasFilter,
+    select: (data) => [
+      ...(data.series ?? []).map((s) => ({ ...s, type: 'series' })),
+      ...(data.lessons ?? []).map((l) => ({ ...l, type: 'lesson' })),
+    ],
   });
 }
 

@@ -26,12 +26,14 @@ export async function getLessonsByTeacher(id, { limit = 50, offset = 0 } = {}) {
        ANY_VALUE(l.date) AS date, ANY_VALUE(l.link) AS link,
        ANY_VALUE(l.has_audio) AS has_audio, ANY_VALUE(l.series_id) AS series_id,
        ANY_VALUE(s.name) AS series_name,
-       ANY_VALUE(i.short_name) AS institution_name
+       ANY_VALUE(t.id) AS teacher_id,
+       ANY_VALUE(t.name) AS teacher_name,
+       ANY_VALUE(i.name) AS institution_name
      FROM lessons l
      JOIN lessons_teachers lt ON lt.item_id = l.id AND lt.item_type = 1
+     JOIN teachers t ON t.id = lt.teacher_id
      LEFT JOIN series s ON s.id = l.series_id
-     LEFT JOIN lessons_institutions li ON li.item_id = l.id AND li.item_type = 1
-     LEFT JOIN institutions i ON i.id = li.institution_id
+     LEFT JOIN institutions i ON i.id = l.institution_id
      WHERE lt.teacher_id = ? AND l.approved = 1
      GROUP BY l.id
      ORDER BY l.date DESC, l.id DESC

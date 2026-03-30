@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { useAudioPlayer } from '../src/audio/useAudioPlayer.js';
 import { MiniPlayer } from '../src/components/MiniPlayer.jsx';
+import { LoginGateModal } from '../src/components/LoginGateModal.jsx';
 import { useAuthStore } from '@torah-app/store';
 import { setTokenProvider } from '@torah-app/api-client';
 
@@ -55,6 +56,7 @@ export default function RootLayout() {
           <Stack.Screen name="auth/index" options={{ title: 'כניסה', presentation: 'modal' }} />
         </Stack>
         <MiniPlayer />
+        <LoginGateModal />
       </View>
     </QueryClientProvider>
   );

@@ -22,6 +22,15 @@ export async function getProgress(userId, lessonId) {
   return rows[0] ?? null;
 }
 
+export async function getProgressBatch(userId, lessonIds) {
+  if (!lessonIds.length) return [];
+  const placeholders = lessonIds.map(() => '?').join(',');
+  return query(
+    `SELECT lesson_id, position_ms, duration_ms, completed FROM user_progress WHERE user_id = ? AND lesson_id IN (${placeholders})`,
+    [userId, ...lessonIds]
+  );
+}
+
 export async function getHistory(userId, { limit = 30 } = {}) {
   return rawQuery(
     `SELECT

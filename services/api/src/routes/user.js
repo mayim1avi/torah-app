@@ -1,7 +1,7 @@
 import {
-  getSavedLessons, isLessonSaved, saveLesson, unsaveLesson,
+  getSavedLessons, isLessonSaved, saveLesson, unsaveLesson, saveLessonsBatch,
 } from '../db/library.js';
-import { upsertProgress, getProgress, getHistory } from '../db/progress.js';
+import { upsertProgress, getProgress, getProgressBatch, getHistory } from '../db/progress.js';
 
 export default async function userRoutes(fastify) {
   // All routes require auth
@@ -32,6 +32,16 @@ export default async function userRoutes(fastify) {
     return { saved: false };
   });
 
+  // POST /api/user/library/batch  body: { lessonIds: [1, 2, 3] }
+  fastify.post('/user/library/batch', auth, async (req, reply) => {
+    const { lessonIds } = req.body ?? {};
+    if (!Array.isArray(lessonIds) || !lessonIds.length)
+      return reply.code(400).send({ error: 'lessonIds required' });
+    await saveLessonsBatch(req.user.sub, lessonIds.map(Number));
+    reply.code(201);
+    return { saved: true };
+  });
+
   // ── Progress & History ─────────────────────────────────────────────────
 
   // POST /api/user/progress  body: { lessonId, positionMs, durationMs }
@@ -40,6 +50,14 @@ export default async function userRoutes(fastify) {
     if (!lessonId) return reply.code(400).send({ error: 'lessonId required' });
     await upsertProgress(req.user.sub, lessonId, positionMs, durationMs);
     return { ok: true };
+  });
+
+  // GET /api/user/progress/batch?ids=1,2,3
+  fastify.get('/user/progress/batch', auth, async (req) => {
+    const ids = (req.query.ids || '').split(',').map(Number).filter(Boolean);
+    if (!ids.length) return {};
+    const rows = await getProgressBatch(req.user.sub, ids);
+    return Object.fromEntries(rows.map(r => [r.lesson_id, r]));
   });
 
   // GET /api/user/progress/:lessonId

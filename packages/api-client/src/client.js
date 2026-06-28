@@ -83,6 +83,8 @@ export const api = {
     apiFetch(`/api/user/library/${lessonId}`, { method: 'POST' }),
   unsaveLesson: (lessonId) =>
     apiFetch(`/api/user/library/${lessonId}`, { method: 'DELETE' }),
+  saveLessonsBatch: (lessonIds) =>
+    apiFetch('/api/user/library/batch', { method: 'POST', body: JSON.stringify({ lessonIds }) }),
 
   // User progress
   saveProgress: ({ lessonId, positionMs, durationMs }) =>
@@ -91,6 +93,7 @@ export const api = {
       body: JSON.stringify({ lessonId, positionMs, durationMs }),
     }),
   getProgress: (lessonId) => apiFetch(`/api/user/progress/${lessonId}`),
+  getProgressBatch: (lessonIds) => apiFetch(`/api/user/progress/batch?ids=${lessonIds.join(',')}`),
   getHistory: ({ limit = 30 } = {}) =>
     apiFetch(`/api/user/history${buildParams({ limit })}`),
 };

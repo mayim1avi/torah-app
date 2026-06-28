@@ -39,6 +39,17 @@ export const usePlayerStore = create((set, get) => ({
 
   dismissLoginGate: () => set({ loginGateVisible: false }),
 
+  addToQueue: (lessons) => {
+    const { currentLesson, queue, playLesson } = get();
+    const newLessons = lessons.filter((l) => l.link);
+    if (!newLessons.length) return;
+    if (!currentLesson) {
+      playLesson(newLessons[0], newLessons);
+    } else {
+      set({ queue: [...queue, ...newLessons] });
+    }
+  },
+
   /**
    * Start playing a lesson, optionally with a queue.
    * If queue is omitted the lesson plays solo.
@@ -79,19 +90,28 @@ export const usePlayerStore = create((set, get) => ({
 
   seek: (ms) => set({ positionMs: ms }),
 
-  playNext: () => {
+  playNext: async () => {
     const { queue, queueIndex } = get();
     if (queueIndex < queue.length - 1) {
       const nextIndex = queueIndex + 1;
-      set({
-        currentLesson: queue[nextIndex],
-        queueIndex: nextIndex,
-        isPlaying: true,
-        isLoading: true,
-        positionMs: 0,
-        durationMs: 0,
-      });
+      set({ currentLesson: queue[nextIndex], queueIndex: nextIndex, isPlaying: true, isLoading: true, positionMs: 0, durationMs: 0 });
+      return;
     }
+
+    // End of queue — wrap to the first unheard lesson (series loop)
+    if (queue.length <= 1) return;
+    const { useAuthStore } = await import('./authStore.js');
+    const token = useAuthStore.getState().token;
+    if (!token) return;
+    try {
+      const { api } = await import('@torah-app/api-client');
+      const progressMap = await api.getProgressBatch(queue.map(l => l.id));
+      const firstUnheard = queue.find(l => !progressMap[l.id]?.completed);
+      if (firstUnheard) {
+        const idx = queue.indexOf(firstUnheard);
+        set({ currentLesson: firstUnheard, queueIndex: idx, isPlaying: true, isLoading: true, positionMs: 0, durationMs: 0 });
+      }
+    } catch {}
   },
 
   playPrev: () => {

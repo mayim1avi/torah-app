@@ -4,8 +4,8 @@ import {
   ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
-import { useSeries, useSeriesLessons } from '@torah-app/api-client';
-import { usePlayerStore } from '@torah-app/store';
+import { useSeries, useSeriesLessons, api } from '@torah-app/api-client';
+import { usePlayerStore, useAuthStore } from '@torah-app/store';
 import { LessonRow } from '@torah-app/ui';
 
 export default function SeriesDetailScreen() {
@@ -20,6 +20,8 @@ export default function SeriesDetailScreen() {
   const currentLesson = usePlayerStore((s) => s.currentLesson);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const togglePlayPause = usePlayerStore((s) => s.togglePlayPause);
+  const addToQueue = usePlayerStore((s) => s.addToQueue);
+  const isLoggedIn = !!useAuthStore((s) => s.token);
 
   useEffect(() => {
     if (series?.name) navigation.setOptions({ title: series.name });
@@ -83,6 +85,17 @@ export default function SeriesDetailScreen() {
             {isSeriesPlaying && isPlaying ? '⏸  השהה סדרה' : '▶  הפעל הכל'}
           </Text>
           <Text style={styles.playAllCount}>{playableLessons.length} שיעורים עם שמע</Text>
+        </TouchableOpacity>
+      )}
+      {playableLessons.length > 0 && (
+        <TouchableOpacity
+          style={styles.queueBtn}
+          onPress={() => {
+            addToQueue(playableLessons);
+            if (isLoggedIn) api.saveLessonsBatch(playableLessons.map((l) => l.id)).catch(() => {});
+          }}
+        >
+          <Text style={styles.queueBtnText}>+ הוסף סדרה לתור</Text>
         </TouchableOpacity>
       )}
 
@@ -167,6 +180,18 @@ const styles = StyleSheet.create({
   },
   playAllText: { color: '#0a1f14', fontSize: 15, fontWeight: '800' },
   playAllCount: { color: '#0a1f1480', fontSize: 12 },
+  queueBtn: {
+    marginHorizontal: 12,
+    marginTop: -4,
+    marginBottom: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2d5c40',
+    alignItems: 'center',
+  },
+  queueBtnText: { color: '#81c784', fontSize: 14 },
   list: { paddingBottom: 32 },
   nowPlayingBar: {
     height: 2,

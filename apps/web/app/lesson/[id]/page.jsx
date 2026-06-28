@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useLesson, useIsLessonSaved, useSaveLessonMutation } from '@torah-app/api-client';
+import { useLesson, useIsLessonSaved, useSaveLessonMutation, api } from '@torah-app/api-client';
 import { useWebPlayerStore } from '../../../src/lib/webPlayerStore.js';
 import { useWebAuthStore } from '../../../src/lib/webAuthStore.js';
 
@@ -38,6 +38,11 @@ const C = {
     marginTop: 6, padding: '8px 20px', borderRadius: 20,
     border: '1px solid #2d5c40', backgroundColor: 'transparent',
     color: '#81c784', fontSize: 13, cursor: 'pointer',
+  },
+  queueBtn: {
+    marginTop: 4, padding: '8px 20px', borderRadius: 20,
+    border: '1px solid #2d5c40', backgroundColor: 'transparent',
+    color: '#4a7c59', fontSize: 13, cursor: 'pointer',
   },
   section: {
     backgroundColor: '#0a1f14', borderTop: '1px solid #1a3a2a',
@@ -78,6 +83,7 @@ export default function LessonPage() {
   const isPlaying = useWebPlayerStore((s) => s.isPlaying);
   const playLesson = useWebPlayerStore((s) => s.playLesson);
   const togglePlayPause = useWebPlayerStore((s) => s.togglePlayPause);
+  const addToQueue = useWebPlayerStore((s) => s.addToQueue);
 
   const isLoggedIn = !!useWebAuthStore((s) => s.token);
   const { data: savedData } = useIsLessonSaved(id, isLoggedIn);
@@ -137,6 +143,17 @@ export default function LessonPage() {
         {isLoggedIn && (
           <button style={C.saveBtn} onClick={() => toggleSave({ lessonId: Number(id), save: !isSaved })}>
             {isSaved ? '🔖 שמור' : '🔖 שמור לספריה'}
+          </button>
+        )}
+        {canPlay && (
+          <button
+            style={C.queueBtn}
+            onClick={() => {
+              addToQueue([lesson]);
+              if (isLoggedIn && !isSaved) toggleSave({ lessonId: Number(id), save: true });
+            }}
+          >
+            + הוסף לתור
           </button>
         )}
       </div>

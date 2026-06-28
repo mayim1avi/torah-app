@@ -1,7 +1,8 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation';
-import { useSeries, useSeriesLessons } from '@torah-app/api-client';
+import { useSeries, useSeriesLessons, api } from '@torah-app/api-client';
 import { useWebPlayerStore } from '../../../src/lib/webPlayerStore.js';
+import { useWebAuthStore } from '../../../src/lib/webAuthStore.js';
 
 const C = {
   page: { maxWidth: 900, margin: '0 auto', padding: '24px 16px' },
@@ -22,6 +23,11 @@ const C = {
     padding: '10px 32px', borderRadius: 24, backgroundColor: '#4caf50',
     color: '#0a1f14', fontWeight: 800, fontSize: 15, border: 'none',
     cursor: 'pointer',
+  },
+  queueBtn: {
+    marginTop: 8, padding: '8px 24px', borderRadius: 24,
+    border: '1px solid #2d5c40', backgroundColor: 'transparent',
+    color: '#81c784', fontSize: 14, cursor: 'pointer',
   },
   sectionTitle: { color: '#81c784', fontSize: 12, fontWeight: 700, marginBottom: 12, letterSpacing: 0.4 },
   row: (isActive) => ({
@@ -54,6 +60,8 @@ export default function SeriesPage() {
   const { data: lessons = [], isLoading: lessonsLoading } = useSeriesLessons(id);
   const currentLesson = useWebPlayerStore((s) => s.currentLesson);
   const playLesson = useWebPlayerStore((s) => s.playLesson);
+  const addToQueue = useWebPlayerStore((s) => s.addToQueue);
+  const isLoggedIn = !!useWebAuthStore((s) => s.token);
 
   if (seriesLoading) return <div style={C.loading}>טוען...</div>;
   if (!series) return <div style={C.loading}>סדרה לא נמצאה</div>;
@@ -83,6 +91,17 @@ export default function SeriesPage() {
         {playableLessons.length > 0 && (
           <button style={C.playAllBtn} onClick={handlePlayAll}>
             ▶ השמע הכל ({playableLessons.length})
+          </button>
+        )}
+        {playableLessons.length > 0 && (
+          <button
+            style={C.queueBtn}
+            onClick={() => {
+              addToQueue(playableLessons);
+              if (isLoggedIn) api.saveLessonsBatch(playableLessons.map((l) => l.id)).catch(() => {});
+            }}
+          >
+            + הוסף סדרה לתור
           </button>
         )}
       </div>

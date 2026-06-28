@@ -46,3 +46,12 @@ export async function unsaveLesson(userId, lessonId) {
     [userId, lessonId]
   );
 }
+
+export async function saveLessonsBatch(userId, lessonIds) {
+  if (!lessonIds.length) return;
+  const placeholders = lessonIds.map(() => '(?, ?)').join(', ');
+  await query(
+    `INSERT IGNORE INTO user_library (user_id, lesson_id) VALUES ${placeholders}`,
+    lessonIds.flatMap((id) => [userId, id])
+  );
+}

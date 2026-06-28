@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { AppState } from 'react-native';
 import { Audio } from 'expo-av';
 import { usePlayerStore, useAuthStore } from '@torah-app/store';
 import { api } from '@torah-app/api-client';
@@ -56,7 +57,7 @@ export function useAudioPlayer() {
       try {
         const { sound } = await Audio.Sound.createAsync(
           { uri: currentLesson.link },
-          { shouldPlay: isPlaying, rate: speed },
+          { shouldPlay: false, rate: speed },
           (status) => {
             if (!status.isLoaded) return;
             _setPosition(status.positionMillis ?? 0, status.durationMillis ?? 0);
@@ -67,6 +68,23 @@ export function useAudioPlayer() {
         if (cancelled) { await sound.unloadAsync().catch(() => {}); return; }
         soundRef.current = sound;
         _setLoading(false);
+
+        // Restore saved position for authenticated users
+        if (token) {
+          try {
+            const saved = await api.getProgress(currentLesson.id);
+            const pos = saved?.position_ms ?? 0;
+            const dur = saved?.duration_ms ?? 0;
+            if (pos > 0 && (dur === 0 || pos < dur * 0.95)) {
+              await sound.setPositionAsync(pos).catch(() => {});
+            }
+          } catch {}
+        }
+
+        // Start playback if the store still wants it playing
+        if (usePlayerStore.getState().isPlaying) {
+          await sound.playAsync().catch(() => {});
+        }
 
         // Position polling
         pollRef.current = setInterval(async () => {
@@ -96,8 +114,18 @@ export function useAudioPlayer() {
   // Play/pause
   useEffect(() => {
     if (!soundRef.current) return;
-    if (isPlaying) soundRef.current.playAsync().catch(() => {});
-    else soundRef.current.pauseAsync().catch(() => {});
+    if (isPlaying) {
+      soundRef.current.playAsync().catch(() => {});
+    } else {
+      soundRef.current.pauseAsync().catch(() => {});
+      // Save position on pause
+      if (token && currentLesson?.id) {
+        const { positionMs: pos, durationMs: dur } = usePlayerStore.getState();
+        if (dur > 0) {
+          api.saveProgress({ lessonId: currentLesson.id, positionMs: pos, durationMs: dur }).catch(() => {});
+        }
+      }
+    }
   }, [isPlaying]);
 
   // Speed
@@ -115,6 +143,19 @@ export function useAudioPlayer() {
     }
     lastPolledMs.current = positionMs;
   }, [positionMs]);
+
+  // Save progress when app goes to background
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'background' && nextState !== 'inactive') return;
+      if (!token || !currentLesson?.id) return;
+      const { positionMs: pos, durationMs: dur } = usePlayerStore.getState();
+      if (dur > 0) {
+        api.saveProgress({ lessonId: currentLesson.id, positionMs: pos, durationMs: dur }).catch(() => {});
+      }
+    });
+    return () => sub.remove();
+  }, [token, currentLesson?.id]);
 
   useEffect(() => () => { unloadSound(); }, [unloadSound]);
 }

@@ -4,7 +4,7 @@ import {
   ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
-import { useLesson, useIsLessonSaved, useSaveLessonMutation } from '@torah-app/api-client';
+import { useLesson, useIsLessonSaved, useSaveLessonMutation, api } from '@torah-app/api-client';
 import { usePlayerStore, useAuthStore } from '@torah-app/store';
 
 export default function LessonDetailScreen() {
@@ -19,6 +19,7 @@ export default function LessonDetailScreen() {
   const currentLesson = usePlayerStore((s) => s.currentLesson);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const togglePlayPause = usePlayerStore((s) => s.togglePlayPause);
+  const addToQueue = usePlayerStore((s) => s.addToQueue);
 
   const isThisLesson = currentLesson?.id === Number(id);
   const isLoggedIn = !!useAuthStore((s) => s.token);
@@ -100,6 +101,17 @@ export default function LessonDetailScreen() {
             onPress={() => toggleSave({ lessonId: Number(id), save: !isSaved })}
           >
             <Text style={styles.saveBtnText}>{isSaved ? '🔖 שמור' : '🔖 שמור לספריה'}</Text>
+          </TouchableOpacity>
+        )}
+        {canPlay && (
+          <TouchableOpacity
+            style={styles.queueBtn}
+            onPress={() => {
+              addToQueue([lesson]);
+              if (isLoggedIn && !isSaved) toggleSave({ lessonId: Number(id), save: true });
+            }}
+          >
+            <Text style={styles.queueBtnText}>+ הוסף לתור</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -226,6 +238,15 @@ const styles = StyleSheet.create({
     borderColor: '#2d5c40',
   },
   saveBtnText: { color: '#81c784', fontSize: 13 },
+  queueBtn: {
+    marginTop: 4,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#2d5c40',
+  },
+  queueBtnText: { color: '#4a7c59', fontSize: 13 },
 
   section: {
     marginTop: 16,
